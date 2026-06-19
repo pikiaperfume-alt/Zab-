@@ -10,7 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@genkit-ai/compat-oai": "^1.37.0",
+    "@genkit-ai/googleai": "^1.28.0",
+    "@supabase/supabase-js": "^2.108.2",
     "firebase": "^12.15.0",
+    "genkit": "^1.37.0",
     "lucide-react": "^1.21.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"

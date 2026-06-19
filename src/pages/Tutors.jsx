@@ -9,6 +9,10 @@ export default function Tutors({ onOpenAuth, onUpgrade }) {
 
   function handleBook(tutor) {
     if (!user) return onOpenAuth('signup');
+    if (user.role === 'tutor') {
+      // Tutors can manage their own sessions and zoom class pipeline
+      return setBooking({ ...tutor, selfBooking: true });
+    }
     if (user.plan !== 'pro') return onUpgrade();
     setBooking(tutor);
   }
@@ -56,18 +60,49 @@ const SLOTS = ['Tomorrow, 9:00 AM', 'Tomorrow, 2:30 PM', 'Thu, 11:00 AM', 'Thu, 
 function BookingModal({ tutor, onClose }) {
   const [slot, setSlot] = useState(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [meetingUrl, setMeetingUrl] = useState(null);
+  const [isCreating, setIsCreating] = useState(false);
+
+  async function createZoomMeeting() {
+    setIsCreating(true);
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const response = await fetch(`${supabaseUrl}/functions/v1/zoom-create-meeting`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${supabaseKey}`,
+        },
+        body: JSON.stringify({
+          tutorId: tutor.id,
+          tutorName: tutor.name,
+          slot,
+          isTutor: tutor.selfBooking,
+        }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setMeetingUrl(data.join_url);
+      } else {
+        console.error('Zoom meeting error', data);
+      }
+    } finally {
+      setIsCreating(false);
+    }
+  }
 
   return (
     <div
       style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(11,8,32,0.75)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
       onClick={onClose}
     >
-      <div className="glass-card" style={{ width: '100%', maxWidth: 420, padding: 30, background: 'var(--night-800)', position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+      <div className="glass-card" style={{ width: '100%', maxWidth: 520, padding: 30, background: 'var(--night-800)', position: 'relative' }} onClick={(e) => e.stopPropagation()}>
         <button onClick={onClose} style={{ position: 'absolute', top: 18, right: 18, color: 'var(--ink-400)' }}><X size={20} /></button>
 
         {!confirmed ? (
           <>
-            <h3 style={{ fontSize: 21, marginBottom: 6 }}>Book {tutor.name}</h3>
+            <h3 style={{ fontSize: 21, marginBottom: 6 }}>{tutor.selfBooking ? 'Create your session' : `Book ${tutor.name}`}</h3>
             <p style={{ fontSize: 13.5, color: 'var(--ink-400)', marginBottom: 24 }}>{tutor.specialty} · Video session</p>
             <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Choose a time</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
@@ -86,16 +121,32 @@ function BookingModal({ tutor, onClose }) {
                 </button>
               ))}
             </div>
-            <button disabled={!slot} className="btn-primary" style={{ width: '100%', opacity: slot ? 1 : 0.5 }} onClick={() => setConfirmed(true)}>
-              Confirm booking
+            <button
+              disabled={!slot || isCreating}
+              className="btn-primary"
+              style={{ width: '100%', opacity: slot && !isCreating ? 1 : 0.5 }}
+              onClick={async () => {
+                if (!slot) return;
+                await createZoomMeeting();
+                setConfirmed(true);
+              }}
+            >
+              {isCreating ? 'Setting up Zoom…' : tutor.selfBooking ? 'Create session' : 'Confirm booking'}
             </button>
           </>
         ) : (
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
             <div style={{ fontSize: 40, marginBottom: 14 }}>✓</div>
-            <h3 style={{ fontSize: 20, marginBottom: 8 }}>You're booked</h3>
+            <h3 style={{ fontSize: 20, marginBottom: 8 }}>{tutor.selfBooking ? 'Session created' : "You're booked"}</h3>
             <p style={{ fontSize: 14, color: 'var(--ink-400)', marginBottom: 24 }}>{tutor.name} · {slot}</p>
-            <button className="btn-secondary" onClick={onClose}>Done</button>
+            {meetingUrl ? (
+              <a href={meetingUrl} target="_blank" rel="noreferrer" className="btn-primary" style={{ display: 'inline-flex', justifyContent: 'center', width: '100%', padding: '11px 0' }}>
+                Join Zoom session
+              </a>
+            ) : (
+              <p style={{ color: 'var(--ink-400)', fontSize: 13 }}>Zoom link is being generated. Refresh if it does not appear.</p>
+            )}
+            <button className="btn-secondary" onClick={onClose} style={{ marginTop: 16 }}>Done</button>
           </div>
         )}
       </div>

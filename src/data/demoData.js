@@ -19,12 +19,66 @@ export const moodRecommendations = {
 };
 
 export const sessions = [
-  { id: 's1', title: 'Morning Calm', type: 'Meditation', duration: '10 min', tier: 'free', cover: '🌅' },
-  { id: 's2', title: 'Deep Focus Flow', type: 'Binaural', duration: '25 min', tier: 'pro', cover: '⚡' },
-  { id: 's3', title: 'Quiet Harbor', type: 'Sleep Story', duration: '18 min', tier: 'sleep', cover: '🌙' },
-  { id: 's4', title: 'Box Breathing', type: 'Breathing', duration: '4 min', tier: 'free', cover: '🫁' },
-  { id: 's5', title: 'Theta Drift', type: 'Sleep Music', duration: '45 min', tier: 'sleep', cover: '✨' },
-  { id: 's6', title: 'Letting Go', type: 'Meditation', duration: '15 min', tier: 'pro', cover: '🍃' },
+  {
+    id: 's1',
+    title: 'Morning Calm',
+    type: 'Meditation',
+    duration: '10 min',
+    tier: 'free',
+    cover: '🌅',
+    audioUrl:
+      'https://cdn.pixabay.com/download/audio/2022/03/15/audio_21ef890d8f.mp3?filename=soft-morning-birds-10845.mp3',
+  },
+  {
+    id: 's2',
+    title: 'Deep Focus Flow',
+    type: 'Binaural',
+    duration: '25 min',
+    tier: 'pro',
+    cover: '⚡',
+    audioUrl:
+      'https://cdn.pixabay.com/download/audio/2022/03/15/audio_3eef7b6cd4.mp3?filename=binaural-beats-focus-10871.mp3',
+  },
+  {
+    id: 's3',
+    title: 'Quiet Harbor',
+    type: 'Sleep Story',
+    duration: '18 min',
+    tier: 'sleep',
+    cover: '🌙',
+    audioUrl:
+      'https://cdn.pixabay.com/download/audio/2022/03/15/audio_53e14fb7f3.mp3?filename=quiet-harbor-sleep-audio-10846.mp3',
+  },
+  {
+    id: 's4',
+    title: 'Box Breathing',
+    type: 'Breathing',
+    duration: '4 min',
+    tier: 'free',
+    cover: '🫁',
+    audioUrl:
+      'https://cdn.pixabay.com/download/audio/2022/03/15/audio_1c5b0d8189.mp3?filename=meditation-breathing-10849.mp3',
+  },
+  {
+    id: 's5',
+    title: 'Theta Drift',
+    type: 'Sleep Music',
+    duration: '45 min',
+    tier: 'sleep',
+    cover: '✨',
+    audioUrl:
+      'https://cdn.pixabay.com/download/audio/2022/03/15/audio_42cc0071f8.mp3?filename=sleepy-waves-10852.mp3',
+  },
+  {
+    id: 's6',
+    title: 'Letting Go',
+    type: 'Meditation',
+    duration: '15 min',
+    tier: 'pro',
+    cover: '🍃',
+    audioUrl:
+      'https://cdn.pixabay.com/download/audio/2022/03/15/audio_69c207f8b9.mp3?filename=relaxing-meditation-10847.mp3',
+  },
 ];
 
 export const clubs = [

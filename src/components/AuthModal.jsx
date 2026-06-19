@@ -3,41 +3,85 @@ import { X } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext';
 
 export default function AuthModal({ mode, onClose, onSuccess }) {
+  const { setAuthUser } = useAuth();
   const [view, setView] = useState(mode);
-  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState('student');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [busy, setBusy] = useState(false);
-  const { signUp, logIn, logInWithGoogle, firebaseReady } = useAuth();
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+    setSuccess('');
     setBusy(true);
-    try {
-      if (view === 'signup') {
-        if (!name.trim()) throw new Error('Please tell us your name.');
-        await signUp(name.trim(), email.trim(), password);
-      } else {
-        await logIn(email.trim(), password);
-      }
-      onSuccess();
-    } catch (err) {
-      setError(humanizeError(err));
-    } finally {
-      setBusy(false);
-    }
-  }
 
-  async function handleGoogle() {
-    setError('');
-    setBusy(true);
     try {
-      await logInWithGoogle();
-      onSuccess();
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+      if (!supabaseUrl || !supabaseKey) {
+        throw new Error('Supabase configuration missing. Please set environment variables.');
+      }
+
+      const body = {
+        email: email.trim(),
+        password,
+        action: view === 'login' ? 'login' : 'signup',
+      };
+
+      if (view === 'signup') {
+        body.role = role;
+      }
+
+      const response = await fetch(
+        `${supabaseUrl}/functions/v1/auth-handler`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseKey}`,
+          },
+          body: JSON.stringify(body),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Authentication failed');
+      }
+
+      setSuccess(data.message);
+
+      if (view === 'login' && data.session) {
+        // Store session and user info in localStorage
+        localStorage.setItem('zab_session', JSON.stringify(data.session));
+        localStorage.setItem('zab_user', JSON.stringify(data.user));
+        localStorage.setItem('zab_user_email', email);
+
+        if (setAuthUser) {
+          setAuthUser(data.user);
+        }
+
+        if (onSuccess) {
+          onSuccess(data.user);
+        }
+
+        setTimeout(() => {
+          onClose();
+        }, 1500);
+      } else if (view === 'signup') {
+        // After signup, show login form
+        setView('login');
+        setEmail('');
+        setPassword('');
+        setSuccess('');
+      }
     } catch (err) {
-      setError(humanizeError(err));
+      setError(err.message || 'An error occurred');
     } finally {
       setBusy(false);
     }
@@ -60,45 +104,37 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
           <X size={20} />
         </button>
 
-        <h3 style={{ fontSize: 24, marginBottom: 6 }}>{view === 'signup' ? 'Create your account' : 'Welcome back'}</h3>
+        <h3 style={{ fontSize: 24, marginBottom: 6 }}>{view === 'signup' ? 'Join ZAB' : 'Welcome back'}</h3>
         <p style={{ color: 'var(--ink-400)', fontSize: 14.5, marginBottom: 24 }}>
-          {view === 'signup' ? 'Start your wellness journey with ZAB.' : 'Glad to see you again.'}
+          {view === 'signup' ? 'Create an account to start your wellness journey.' : 'Sign in to your account'}
         </p>
 
-        {!firebaseReady && (
-          <p style={{ fontSize: 12.5, color: 'var(--lotus-300)', background: 'rgba(201,168,240,0.08)', padding: '8px 12px', borderRadius: 10, marginBottom: 18 }}>
-            Demo mode — no Firebase keys yet, so this creates a local session only.
-          </p>
-        )}
-
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {view === 'signup' && (
-            <Field label="Name" value={name} onChange={setName} placeholder="Sarah Namutebi" />
-          )}
           <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="you@email.com" />
           <Field label="Password" type="password" value={password} onChange={setPassword} placeholder="••••••••" />
 
+          {view === 'signup' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <p style={{ margin: 0, color: 'var(--ink-400)', fontSize: 13.5 }}>I am a</p>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <RoleOption selected={role === 'student'} onClick={() => setRole('student')} label="Wellness member" description="Access sessions, tutors, and AI guidance." />
+                <RoleOption selected={role === 'tutor'} onClick={() => setRole('tutor')} label="Tutor / Instructor" description="Offer guided video sessions and run your own classes." />
+              </div>
+            </div>
+          )}
+
           {error && <p style={{ color: '#F08AA8', fontSize: 13 }}>{error}</p>}
+          {success && <p style={{ color: '#98FB98', fontSize: 13 }}>{success}</p>}
 
           <button type="submit" className="btn-primary" disabled={busy} style={{ marginTop: 6, opacity: busy ? 0.7 : 1 }}>
-            {busy ? 'Please wait…' : view === 'signup' ? 'Create account' : 'Log in'}
+            {busy ? 'Please wait…' : view === 'signup' ? 'Create account' : 'Sign in'}
           </button>
         </form>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '18px 0' }}>
-          <div style={{ flex: 1, height: 1, background: 'rgba(245,243,255,0.1)' }} />
-          <span style={{ fontSize: 12, color: 'var(--ink-400)' }}>or</span>
-          <div style={{ flex: 1, height: 1, background: 'rgba(245,243,255,0.1)' }} />
-        </div>
-
-        <button onClick={handleGoogle} disabled={busy} className="btn-secondary" style={{ width: '100%' }}>
-          Continue with Google
-        </button>
-
         <p style={{ textAlign: 'center', fontSize: 13.5, color: 'var(--ink-400)', marginTop: 20 }}>
           {view === 'signup' ? 'Already have an account?' : "Don't have an account?"}{' '}
-          <button onClick={() => setView(view === 'signup' ? 'login' : 'signup')} style={{ color: 'var(--lotus-300)', fontWeight: 600 }}>
-            {view === 'signup' ? 'Log in' : 'Sign up'}
+          <button onClick={() => { setView(view === 'signup' ? 'login' : 'signup'); setError(''); setSuccess(''); }} style={{ color: 'var(--lotus-300)', fontWeight: 600 }}>
+            {view === 'signup' ? 'Sign in' : 'Sign up'}
           </button>
         </p>
       </div>
@@ -126,6 +162,27 @@ function Field({ label, value, onChange, type = 'text', placeholder }) {
         }}
       />
     </label>
+  );
+}
+
+function RoleOption({ selected, onClick, label, description }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        flex: 1,
+        textAlign: 'left',
+        padding: '14px 16px',
+        borderRadius: 14,
+        border: selected ? '1px solid #C9A8F0' : '1px solid rgba(245,243,255,0.12)',
+        background: selected ? 'rgba(201,168,240,0.12)' : 'rgba(245,243,255,0.04)',
+        color: '#F5F3FF',
+      }}
+    >
+      <strong style={{ display: 'block', marginBottom: 6, fontSize: 14 }}>{label}</strong>
+      <span style={{ fontSize: 12.5, color: 'var(--ink-400)' }}>{description}</span>
+    </button>
   );
 }
 

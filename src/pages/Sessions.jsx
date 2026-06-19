@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Play, Lock } from 'lucide-react';
 import { sessions } from '../data/demoData';
 import { useAuth } from '../lib/AuthContext';
+import { useNetworkStatus } from '../lib/network';
+import AudioPlayer from '../components/AudioPlayer';
 
 const FILTERS = ['All', 'Meditation', 'Breathing', 'Sleep Story', 'Sleep Music', 'Binaural'];
 
@@ -9,6 +11,9 @@ export default function Sessions({ onOpenAuth, onUpgrade }) {
   const [filter, setFilter] = useState('All');
   const { user } = useAuth();
   const [playing, setPlaying] = useState(null);
+  const [activeSession, setActiveSession] = useState(null);
+  const network = useNetworkStatus();
+  const lowDataMode = network.saveData || network.cellular;
 
   const filtered = filter === 'All' ? sessions : sessions.filter((s) => s.type === filter);
 
@@ -24,6 +29,7 @@ export default function Sessions({ onOpenAuth, onUpgrade }) {
     if (!user) return onOpenAuth('signup');
     if (!canAccess(s)) return onUpgrade();
     setPlaying(s.id);
+    setActiveSession(s);
   }
 
   return (
@@ -46,6 +52,12 @@ export default function Sessions({ onOpenAuth, onUpgrade }) {
           </button>
         ))}
       </div>
+
+      {lowDataMode && (
+        <div style={{ marginBottom: 18, padding: '16px 18px', borderRadius: 16, background: 'rgba(245,243,255,0.05)', color: 'var(--ink-300)', fontSize: 13.5, lineHeight: 1.6 }}>
+          Low data mode is active. Audio streams will only start when you tap play, and offline downloads are limited.
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 18 }}>
         {filtered.map((s) => {
@@ -80,6 +92,10 @@ export default function Sessions({ onOpenAuth, onUpgrade }) {
           );
         })}
       </div>
+
+      {activeSession && (
+        <AudioPlayer session={activeSession} />
+      )}
     </div>
   );
 }

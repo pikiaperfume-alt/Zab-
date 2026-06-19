@@ -11,6 +11,7 @@ import Tutors from './pages/Tutors';
 import Projects from './pages/Projects';
 import Pricing from './pages/Pricing';
 import Dashboard from './pages/Dashboard';
+import InstructorDashboard from './pages/InstructorDashboard';
 
 function AppShell() {
   const [page, setPage] = useState('home');
@@ -50,7 +51,7 @@ function AppShell() {
         {page === 'tutors' && <Tutors onOpenAuth={openAuth} onUpgrade={goUpgrade} />}
         {page === 'projects' && <Projects onOpenAuth={openAuth} />}
         {page === 'pricing' && <Pricing onOpenAuth={openAuth} />}
-        {page === 'dashboard' && (user ? <Dashboard onNavigate={navigate} /> : <Home onNavigate={navigate} onOpenAuth={openAuth} selectedMood={selectedMood} onSelectMood={setSelectedMood} />)}
+        {page === 'dashboard' && (user ? (user.role === 'tutor' ? <InstructorDashboard onNavigate={navigate} /> : <Dashboard onNavigate={navigate} />) : <Home onNavigate={navigate} onOpenAuth={openAuth} selectedMood={selectedMood} onSelectMood={setSelectedMood} />)}
 
         <Footer />
         <AICompanion mood={selectedMood} />

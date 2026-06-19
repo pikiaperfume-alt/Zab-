@@ -25,12 +25,20 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!firebaseReady) {
-      const saved = localStorage.getItem(DEMO_USER_KEY);
-      if (saved) setUser(JSON.parse(saved));
+    const saved = localStorage.getItem('zab_user');
+    if (saved) {
+      setUser(JSON.parse(saved));
       setLoading(false);
       return;
     }
+
+    if (!firebaseReady) {
+      const demoSaved = localStorage.getItem(DEMO_USER_KEY);
+      if (demoSaved) setUser(JSON.parse(demoSaved));
+      setLoading(false);
+      return;
+    }
+
     const unsub = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
         const profileRef = doc(db, 'users', fbUser.uid);
@@ -41,6 +49,7 @@ export function AuthProvider({ children }) {
           name: fbUser.displayName || profile.name || 'Friend',
           email: fbUser.email,
           plan: profile.plan || 'free',
+          role: profile.role || 'student',
           ...profile,
         });
       } else {
@@ -78,29 +87,50 @@ export function AuthProvider({ children }) {
         name: cred.user.displayName,
         email: cred.user.email,
         plan: 'free',
+        role: 'student',
         createdAt: serverTimestamp(),
       });
     }
   }
 
   function demoSignIn(name) {
-    const demoUser = { uid: 'demo-' + Date.now(), name, email: `${name}@demo.zab`, plan: 'free' };
+    const demoUser = {
+      uid: 'demo-' + Date.now(),
+      name,
+      email: `${name}@demo.zab`,
+      plan: 'free',
+      role: 'student',
+    };
     localStorage.setItem(DEMO_USER_KEY, JSON.stringify(demoUser));
     setUser(demoUser);
   }
 
+  function setUserState(payload) {
+    setUser(payload);
+    localStorage.setItem('zab_user', JSON.stringify(payload));
+  }
+
   async function logOut() {
+    localStorage.removeItem('zab_user');
+    localStorage.removeItem('zab_session');
+    localStorage.removeItem('zab_user_email');
     if (!firebaseReady) {
       localStorage.removeItem(DEMO_USER_KEY);
       setUser(null);
       return;
     }
-    await signOut(auth);
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.warn('Firebase sign out failed', error);
+    }
+    setUser(null);
   }
 
   function setPlanLocally(plan) {
     setUser((u) => {
       const updated = { ...u, plan };
+      localStorage.setItem('zab_user', JSON.stringify(updated));
       if (!firebaseReady) localStorage.setItem(DEMO_USER_KEY, JSON.stringify(updated));
       return updated;
     });
@@ -109,9 +139,14 @@ export function AuthProvider({ children }) {
     }
   }
 
+  function setAuthUser(payload) {
+    setUser(payload);
+    localStorage.setItem('zab_user', JSON.stringify(payload));
+  }
+
   return (
     <AuthContext.Provider
-      value={{ user, loading, signUp, logIn, logInWithGoogle, logOut, setPlanLocally, firebaseReady }}
+      value={{ user, loading, signUp, logIn, logInWithGoogle, logOut, setPlanLocally, setAuthUser, firebaseReady }}
     >
       {children}
     </AuthContext.Provider>

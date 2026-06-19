@@ -1,14 +1,38 @@
-// Gemini integration for the ZAB AI Wellness Companion.
-//
-// Calls the Gemini API directly from the client using a public API key.
-// For production, proxy this through a Firebase Cloud Function so the key
-// is never exposed in the browser bundle — see /functions/geminiChat.js (stub).
+import { genkit } from 'genkit';
+import { googleAI, gemini as geminiModel } from '@genkit-ai/googleai';
+import openAI from '@genkit-ai/compat-oai/openai';
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-const GEMINI_MODEL = 'gemini-2.5-flash';
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
+const OPENAI_BASE_URL = import.meta.env.VITE_OPENAI_BASE_URL;
+const ZAB_AI_PROVIDER = import.meta.env.VITE_ZAB_AI_PROVIDER || 'auto';
 
-export const geminiReady = Boolean(GEMINI_API_KEY);
+const GEMINI_MODEL = 'gemini-2.5-flash';
+const OPENAI_MODEL_NAME = 'gpt-3.5-turbo';
+
+const geminiPlugin = GEMINI_API_KEY
+  ? googleAI({ apiKey: GEMINI_API_KEY, apiVersion: 'v1beta' })
+  : null;
+const openAIPlugin = OPENAI_API_KEY
+  ? openAI({ apiKey: OPENAI_API_KEY, baseURL: OPENAI_BASE_URL })
+  : null;
+
+const ai = genkit({
+  plugins: [geminiPlugin, openAIPlugin].filter(Boolean),
+});
+
+export const zabAIReady = Boolean(GEMINI_API_KEY || OPENAI_API_KEY);
+export const availableZabAIProviders = [
+  ...(OPENAI_API_KEY ? ['openai'] : []),
+  ...(GEMINI_API_KEY ? ['gemini'] : []),
+];
+export const zabAIProviderLabels = {
+  auto: 'Auto',
+  openai: 'OpenAI-compatible',
+  gemini: 'Gemini',
+};
+export const initialZabAIProvider =
+  availableZabAIProviders[0] ?? 'auto';
 
 const ZAB_SYSTEM_PROMPT = `You are the ZAB AI Wellness Companion — a warm, calm, emotionally intelligent guide inside the ZAB app.
 ZAB helps people relax, connect, and grow through meditation, sleep, breathing, wellness clubs, and human tutors.
@@ -19,14 +43,41 @@ You can suggest in-app actions (a specific meditation length, a breathing exerci
 If someone describes a crisis, self-harm, or being in danger, gently encourage them to reach out to a crisis line or trusted person right away, and keep your tone calm and non-alarming.
 Never diagnose. Never claim to be human.`;
 
+function chooseProvider(requestedProvider = 'auto') {
+  const normalized = String(requestedProvider).toLowerCase();
+  if (normalized === 'openai' && OPENAI_API_KEY) return 'openai';
+  if (normalized === 'gemini' && GEMINI_API_KEY) return 'gemini';
+  if (normalized === 'auto') {
+    return OPENAI_API_KEY ? 'openai' : GEMINI_API_KEY ? 'gemini' : 'none';
+  }
+  return OPENAI_API_KEY ? 'openai' : GEMINI_API_KEY ? 'gemini' : 'none';
+}
+
+function chooseModel(provider) {
+  if (provider === 'openai') {
+    return openAI.model(OPENAI_MODEL_NAME);
+  }
+  if (provider === 'gemini') {
+    return geminiModel(GEMINI_MODEL);
+  }
+  return undefined;
+}
+
 /**
  * Send a message to the ZAB AI companion.
  * @param {Array<{role: 'user'|'model', text: string}>} history - prior turns
  * @param {string} userMessage
- * @param {object} context - optional { mood, name } to personalize tone
+ * @param {object} context - optional { mood, provider } to personalize tone
  */
 export async function sendToZabAI(history, userMessage, context = {}) {
-  if (!geminiReady) {
+  if (!zabAIReady) {
+    return demoZabReply(userMessage, context);
+  }
+
+  const provider = chooseProvider(context.provider ?? ZAB_AI_PROVIDER);
+  const model = chooseModel(provider);
+  if (!model) {
+    console.warn('[ZAB AI] No provider model available, using demo fallback.');
     return demoZabReply(userMessage, context);
   }
 
@@ -34,37 +85,28 @@ export async function sendToZabAI(history, userMessage, context = {}) {
     ? `The user currently says they are feeling: ${context.mood}.`
     : '';
 
-  const contents = [
+  const messages = [
     {
-      role: 'user',
-      parts: [{ text: `${ZAB_SYSTEM_PROMPT}\n${contextLine}` }],
-    },
-    {
-      role: 'model',
-      parts: [{ text: "Understood. I'm here, calm and ready to help." }],
+      role: 'system',
+      content: `${ZAB_SYSTEM_PROMPT}\n${contextLine}`,
     },
     ...history.map((turn) => ({
       role: turn.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: turn.text }],
+      content: turn.text,
     })),
-    { role: 'user', parts: [{ text: userMessage }] },
+    { role: 'user', content: userMessage },
   ];
 
   try {
-    const res = await fetch(GEMINI_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents,
-        generationConfig: { temperature: 0.8, maxOutputTokens: 300 },
-      }),
+    const response = await ai.generate({
+      model,
+      messages,
+      config: { temperature: 0.8, maxOutputTokens: 300 },
     });
-    if (!res.ok) throw new Error(`Gemini error ${res.status}`);
-    const data = await res.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    return text || "I'm here with you. Tell me a little more?";
+    const text = response?.text;
+    return text?.trim() || "I'm here with you. Tell me a little more?";
   } catch (err) {
-    console.error('[ZAB AI] Gemini request failed:', err);
+    console.error('[ZAB AI] GenKit request failed:', err);
     return demoZabReply(userMessage, context);
   }
 }

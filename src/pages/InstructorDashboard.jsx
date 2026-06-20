@@ -18,7 +18,8 @@ export default function InstructorDashboard({ onNavigate }) {
       </p>
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 28 }}>
-        <button className="btn-primary" onClick={() => setShowForm(true)}>Create new session</button>
+        <button className="btn-primary" onClick={() => onNavigate('live')}>Open live room</button>
+        <button className="btn-secondary" onClick={() => setShowForm(true)}>Create new session</button>
         <button className="btn-secondary" onClick={() => onNavigate('tutors')}>Browse students</button>
       </div>
 
@@ -45,7 +46,7 @@ export default function InstructorDashboard({ onNavigate }) {
             <button onClick={() => setShowForm(false)} style={{ position: 'absolute', top: 18, right: 18, color: 'var(--ink-400)' }}>✕</button>
             <h3 style={{ fontSize: 22, marginBottom: 16 }}>Create a new class</h3>
             <p style={{ fontSize: 13.5, color: 'var(--ink-400)', marginBottom: 18 }}>Use your instructor access to run live video and audio wellness sessions with students.</p>
-            <button className="btn-primary" onClick={() => setShowForm(false)}>Start with Zoom</button>
+            <button className="btn-primary" onClick={() => { setShowForm(false); onNavigate('live'); }}>Start live session</button>
           </div>
         </div>
       )}

@@ -3,6 +3,11 @@ import { createClient } from '@supabase/supabase-js';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+export const STORAGE_BUCKETS = {
+  sounds: 'sounds',
+  videos: 'videos',
+};
+
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   console.warn(
     '[ZAB] Supabase not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.local'
@@ -14,6 +19,14 @@ export const supabase = SUPABASE_URL && SUPABASE_ANON_KEY
   : null;
 
 export const isSupabaseReady = Boolean(supabase);
+
+export function getSupabaseStorageStatus() {
+  return {
+    ready: isSupabaseReady,
+    url: SUPABASE_URL || '',
+    bucketNames: Object.values(STORAGE_BUCKETS),
+  };
+}
 
 /**
  * Store a wellness companion conversation in Supabase

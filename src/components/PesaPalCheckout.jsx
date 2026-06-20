@@ -1,18 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { CreditCard, Check } from 'lucide-react';
 
-export default function PayPalCheckout({ userEmail, onSuccess, onCancel }) {
-  const [subscriptionPlan, setSubscriptionPlan] = useState('premium');
+export default function PesaPalCheckout({ userEmail, selectedPlan, onSuccess, onCancel }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [orderId, setOrderId] = useState(null);
 
-  const plans = {
-    premium: { name: 'Premium', price: 9.99, description: 'Unlimited wellness coaching' },
-    pro: { name: 'Pro', price: 19.99, description: 'Priority support + Advanced metrics' },
-  };
-
-  const currentPlan = plans[subscriptionPlan];
+  const currentPlan = selectedPlan || { name: 'Premium', price: 0 };
 
   const handleCreateOrder = async () => {
     setError('');
@@ -26,19 +19,19 @@ export default function PayPalCheckout({ userEmail, onSuccess, onCancel }) {
         throw new Error('Supabase configuration missing');
       }
 
-      // Create PayPal order
+      // Create PesaPal order
       const createResponse = await fetch(
-        `${supabaseUrl}/functions/v1/paypal-create-order`,
+        `${supabaseUrl}/functions/v1/pesapal-create-order`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseKey}`,
+            Authorization: `Bearer ${supabaseKey}`,
           },
           body: JSON.stringify({
             amount: currentPlan.price,
             description: `ZAB ${currentPlan.name} Subscription`,
-            userEmail: userEmail,
+            userEmail,
           }),
         }
       );
@@ -49,24 +42,20 @@ export default function PayPalCheckout({ userEmail, onSuccess, onCancel }) {
         throw new Error(data.error || 'Failed to create order');
       }
 
-      setOrderId(data.orderId);
-
-      // Find the approve link
-      const approveLink = data.links?.find(link => link.rel === 'approve');
+      const approveLink = data.links?.find((link) => link.rel === 'approve');
       if (approveLink) {
-        // Redirect to PayPal checkout
         window.location.href = approveLink.href;
       } else {
-        throw new Error('PayPal approval link not found');
+        throw new Error('PesaPal approval link not found');
       }
     } catch (err) {
-      setError(err.message);
+      setError(err instanceof Error ? err.message : 'Something went wrong');
       setLoading(false);
     }
   };
 
   return (
-    <div className="paypal-checkout" style={{
+    <div className="pesapal-checkout" style={{
       maxWidth: '500px',
       margin: '0 auto',
       padding: '32px',
@@ -76,37 +65,8 @@ export default function PayPalCheckout({ userEmail, onSuccess, onCancel }) {
     }}>
       <h2 style={{ fontSize: '24px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
         <CreditCard size={28} />
-        Choose Your Plan
+        Checkout
       </h2>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
-        {Object.entries(plans).map(([key, plan]) => (
-          <button
-            key={key}
-            onClick={() => setSubscriptionPlan(key)}
-            style={{
-              padding: '16px',
-              background: subscriptionPlan === key ? 'rgba(201,168,240,0.15)' : 'rgba(245,243,255,0.05)',
-              border: subscriptionPlan === key ? '2px solid var(--lotus-300)' : '1px solid rgba(245,243,255,0.1)',
-              borderRadius: '12px',
-              cursor: 'pointer',
-              transition: 'all 0.3s',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              textAlign: 'left',
-            }}
-          >
-            <div>
-              <div style={{ fontWeight: '600', marginBottom: '4px' }}>{plan.name}</div>
-              <div style={{ fontSize: '12px', color: 'var(--ink-400)' }}>{plan.description}</div>
-            </div>
-            <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--lotus-300)' }}>
-              ${plan.price}
-            </div>
-          </button>
-        ))}
-      </div>
 
       <div style={{
         background: 'rgba(245,243,255,0.05)',
@@ -117,7 +77,7 @@ export default function PayPalCheckout({ userEmail, onSuccess, onCancel }) {
         <div style={{ fontSize: '12px', color: 'var(--ink-400)', marginBottom: '8px' }}>Summary</div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
           <span>{currentPlan.name} Plan</span>
-          <span>${currentPlan.price}</span>
+          <span>UGX {currentPlan.price.toLocaleString()}</span>
         </div>
         <div style={{
           borderTop: '1px solid rgba(245,243,255,0.1)',
@@ -127,7 +87,7 @@ export default function PayPalCheckout({ userEmail, onSuccess, onCancel }) {
           fontWeight: '600',
         }}>
           <span>Total</span>
-          <span>${currentPlan.price}</span>
+          <span>UGX {currentPlan.price.toLocaleString()}</span>
         </div>
       </div>
 
@@ -160,7 +120,7 @@ export default function PayPalCheckout({ userEmail, onSuccess, onCancel }) {
           marginBottom: '12px',
         }}
       >
-        {loading ? 'Processing...' : 'Continue to PayPal'}
+        {loading ? 'Processing...' : 'Continue to PesaPal'}
       </button>
 
       <button
@@ -190,7 +150,7 @@ export default function PayPalCheckout({ userEmail, onSuccess, onCancel }) {
         lineHeight: '1.5',
       }}>
         <Check size={14} style={{ display: 'inline-block', marginRight: '6px' }} />
-        Secure payment powered by PayPal
+        Secure payment powered by PesaPal
       </div>
     </div>
   );

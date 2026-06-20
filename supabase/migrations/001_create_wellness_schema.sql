@@ -67,6 +67,20 @@ CREATE TABLE IF NOT EXISTS public.user_profiles (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Create service media/table metadata for audio/video assets stored in Supabase Storage
+CREATE TABLE IF NOT EXISTS public.service_media (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  service_id TEXT,
+  title TEXT,
+  media_type TEXT NOT NULL,
+  bucket TEXT NOT NULL,
+  storage_path TEXT NOT NULL,
+  public_url TEXT,
+  duration TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create tutor_sessions table for Zoom-enabled instructor classes
 CREATE TABLE IF NOT EXISTS public.tutor_sessions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -86,7 +100,7 @@ CREATE TABLE IF NOT EXISTS public.tutor_sessions (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create payments table for PayPal transactions
+-- Create payments table for PesaPal transactions
 CREATE TABLE IF NOT EXISTS public.payments (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_email TEXT NOT NULL,
@@ -95,8 +109,8 @@ CREATE TABLE IF NOT EXISTS public.payments (
   description TEXT,
   status TEXT DEFAULT 'CREATED',
   transaction_id TEXT,
-  paypal_order JSONB,
-  paypal_webhook_event JSONB,
+  pesapal_order JSONB,
+  pesapal_webhook_event JSONB,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   completed_at TIMESTAMP WITH TIME ZONE,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -118,6 +132,8 @@ CREATE TABLE IF NOT EXISTS public.user_subscriptions (
 -- Create indexes for payment tables
 CREATE INDEX IF NOT EXISTS idx_user_profiles_email ON public.user_profiles(email);
 CREATE INDEX IF NOT EXISTS idx_user_profiles_user_id ON public.user_profiles(user_id);
+CREATE INDEX IF NOT EXISTS idx_service_media_service_id ON public.service_media(service_id);
+CREATE INDEX IF NOT EXISTS idx_service_media_media_type ON public.service_media(media_type);
 CREATE INDEX IF NOT EXISTS idx_tutor_sessions_tutor_id ON public.tutor_sessions(tutor_id);
 CREATE INDEX IF NOT EXISTS idx_payments_user_email ON public.payments(user_email);
 CREATE INDEX IF NOT EXISTS idx_payments_order_id ON public.payments(order_id);
@@ -129,6 +145,7 @@ CREATE INDEX IF NOT EXISTS idx_user_subscriptions_expires_at ON public.user_subs
 
 -- Enable RLS on new tables
 ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.service_media ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tutor_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_subscriptions ENABLE ROW LEVEL SECURITY;
@@ -141,6 +158,20 @@ CREATE POLICY "Users can read own profile"
 CREATE POLICY "Users can update own profile"
   ON public.user_profiles FOR UPDATE
   USING (true);
+
+-- Create RLS policies for service media
+CREATE POLICY "Users can read service media"
+  ON public.service_media FOR SELECT
+  USING (true);
+
+CREATE POLICY "Users can insert service media"
+  ON public.service_media FOR INSERT
+  WITH CHECK (true);
+
+CREATE POLICY "Users can update service media"
+  ON public.service_media FOR UPDATE
+  USING (true)
+  WITH CHECK (true);
 
 -- Create RLS policies for tutor_sessions
 CREATE POLICY "Users can read tutor sessions"

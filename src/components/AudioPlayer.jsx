@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNetworkStatus } from '../lib/network';
+import { resolveMediaUrl } from '../lib/storage';
 
 export default function AudioPlayer({ session }) {
   const audioRef = useRef(null);
@@ -10,6 +11,8 @@ export default function AudioPlayer({ session }) {
   const network = useNetworkStatus();
   const lowDataMode = network.saveData || network.cellular;
   const disableCacheWrite = lowDataMode && !isCached;
+
+  const mediaUrl = resolveMediaUrl(session?.audioUrl || session?.mediaUrl || session?.url);
 
   useEffect(() => {
     let objectUrl;
@@ -23,7 +26,7 @@ export default function AudioPlayer({ session }) {
 
       try {
         const cache = await caches.open(cacheName);
-        const response = await cache.match(session.audioUrl);
+        const response = await cache.match(mediaUrl);
         if (response) {
           const blob = await response.blob();
           objectUrl = URL.createObjectURL(blob);
@@ -37,12 +40,17 @@ export default function AudioPlayer({ session }) {
       }
     }
 
+    if (!mediaUrl) {
+      setCacheStatus('ready');
+      return;
+    }
+
     initCache();
 
     return () => {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [session.audioUrl]);
+  }, [mediaUrl]);
 
   async function handleToggleCache() {
     if (lowDataMode && !isCached) {
@@ -58,15 +66,20 @@ export default function AudioPlayer({ session }) {
     setError('');
     const cacheName = 'zab-audio-cache';
 
+    if (!mediaUrl) {
+      setError('No audio source is available yet.');
+      return;
+    }
+
     try {
       const cache = await caches.open(cacheName);
       if (isCached) {
-        await cache.delete(session.audioUrl);
+        await cache.delete(mediaUrl);
         setIsCached(false);
-        setAudioSrc(session.audioUrl);
+        setAudioSrc(mediaUrl);
       } else {
-        await cache.add(session.audioUrl);
-        const response = await cache.match(session.audioUrl);
+        await cache.add(mediaUrl);
+        const response = await cache.match(mediaUrl);
         if (response) {
           const blob = await response.blob();
           const objectUrl = URL.createObjectURL(blob);
@@ -135,7 +148,7 @@ export default function AudioPlayer({ session }) {
 
       <audio
         ref={audioRef}
-        src={audioSrc || session.audioUrl}
+        src={audioSrc || mediaUrl}
         preload="none"
         controls
         style={{ width: '100%', borderRadius: 16, outline: 'none' }}

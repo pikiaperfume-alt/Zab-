@@ -1,13 +1,26 @@
+import { useState } from 'react';
 import { Check } from 'lucide-react';
 import { plans } from '../data/demoData';
 import { useAuth } from '../lib/AuthContext';
+import PesaPalCheckout from '../components/PesaPalCheckout';
 
 export default function Pricing({ onOpenAuth }) {
   const { user, setPlanLocally } = useAuth();
+  const [checkoutPlan, setCheckoutPlan] = useState(null);
 
   function handleSelect(plan) {
     if (!user) return onOpenAuth('signup');
-    setPlanLocally(plan.id);
+    if (plan.price === 0) {
+      setPlanLocally(plan.id);
+      return;
+    }
+    setCheckoutPlan(plan);
+  }
+
+  function handleCheckoutSuccess() {
+    if (!checkoutPlan) return;
+    setPlanLocally(checkoutPlan.id);
+    setCheckoutPlan(null);
   }
 
   return (
@@ -62,6 +75,26 @@ export default function Pricing({ onOpenAuth }) {
           );
         })}
       </div>
+
+      {checkoutPlan && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(4, 6, 20, 0.78)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 24,
+          zIndex: 60,
+        }}>
+          <PesaPalCheckout
+            userEmail={user?.email || ''}
+            selectedPlan={checkoutPlan}
+            onSuccess={handleCheckoutSuccess}
+            onCancel={() => setCheckoutPlan(null)}
+          />
+        </div>
+      )}
 
       <style>{`
         @media (max-width: 880px) {
